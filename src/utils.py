@@ -59,6 +59,26 @@ def extract_multimodal_ae_embeddings(
 
     return torch.cat(z, dim=0)
 
+@torch.no_grad()
+def extract_embeddings(
+    model_cls: Type[pl.LightningModule],
+    name: str,
+    datamodule: DataModule,
+):
+    best_model = model_cls.load_from_checkpoint(
+        checkpoint_path=f"./data/checkpoints/{name}/model.ckpt",
+        use_cuda=True,
+    )
+    best_model = best_model.cuda()
+    best_model.eval()
+
+    z = []
+    for batch in datamodule.all_dataloader():
+        text_emb = batch["text_emb"].cuda()
+        img_emb = batch["img_emb"].cuda()
+        z.append(best_model.get_representation(img_emb, text_emb))
+    return torch.cat(z, dim=0).cpu()
+
 
 def visualize_most_similar(
     df,
