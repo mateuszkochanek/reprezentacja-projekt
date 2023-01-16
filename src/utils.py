@@ -60,7 +60,7 @@ def extract_multimodal_ae_embeddings(
     return torch.cat(z, dim=0)
 
 @torch.no_grad()
-def extract_embeddings(
+def extract_multimodal_vae_embeddings(
     model_cls: Type[pl.LightningModule],
     name: str,
     datamodule: DataModule,

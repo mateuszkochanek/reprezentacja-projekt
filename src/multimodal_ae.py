@@ -205,6 +205,9 @@ class MultimodalAE(BaseAE):
     def forward(self, batch) -> torch.Tensor:
         encoded = self.encoder(batch)
         return self.fusion(encoded)
+    
+    def encode(self, batch):
+        return self.forward(batch)
 
     def _common_step(self, batch) -> torch.Tensor:
         z = self.forward(batch)

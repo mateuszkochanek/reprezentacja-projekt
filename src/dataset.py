@@ -39,7 +39,7 @@ class DataModule(pl.LightningDataModule):
         self.df = {
             "train": train_df,
             "test": test_df,
-            "all": pd.concat([train_df, test_df]),
+            "all": pd.concat([train_df, test_df]).reset_index(),
         }
         self.batch_size = batch_size
 
@@ -47,6 +47,9 @@ class DataModule(pl.LightningDataModule):
         return self._dataloader("train")
 
     def val_dataloader(self) -> DataLoader:
+        return self._dataloader("test")
+    
+    def test_dataloader(self) -> DataLoader:
         return self._dataloader("test")
 
     def all_dataloader(self) -> DataLoader:

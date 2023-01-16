@@ -224,7 +224,10 @@ class MVAE(BaseVAE):
         mu, logvar = self.forward_encoder(img_emb, text_emb)
         z = self.reparametrize(mu, logvar)
         return z
-        
+    
+    def encode(self, batch):
+        return self.get_representation(batch["img_emb"], batch["text_emb"])
+
     def reparametrize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
