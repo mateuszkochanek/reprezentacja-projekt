@@ -1,12 +1,17 @@
+import base64
+import io
 from typing import Tuple, Type
 import numpy as np
+import pandas as pd
 from datasets import load_dataset
 from PIL import Image
 import torch
 from sklearn.neighbors import NearestNeighbors
 from matplotlib import pyplot as plt
 import pytorch_lightning as pl
-
+from dash import dcc, html, Input, Output, no_update
+from jupyter_dash import JupyterDash
+import plotly.express as px
 from .dataset import DataModule
 
 
@@ -33,10 +38,94 @@ def get_image(image_index: int, split="train", dataset="cub") -> np.ndarray:
     if dataset == "cub":
         return np.array(CUBE_DATASET[split][image_index]['image'])
     elif dataset == "hatefull":
-        with Image.open(f"data/heatfull_meme/data/img/{image_index}.png") as img:
+        image_name = str(image_index)
+        if len(image_name) < 5:
+            image_name = "0" + image_name
+        with Image.open(f"data/heatfull_meme/data/img/{image_name}.png") as img:
             return np.array(img)
     else:
         raise Exception(f"Dataset {dataset} is invalid")
+        
+        
+def np_image_to_base64(im_matrix):
+    im = Image.fromarray(im_matrix)
+    buffer = io.BytesIO()
+    im.save(buffer, format="png")
+    encoded_image = base64.b64encode(buffer.getvalue()).decode()
+    im_url = "data:image/jpeg;base64, " + encoded_image
+    return im_url
+
+
+def make_interactive_scatter_plot(
+    title: str,
+    z_2d: torch.Tensor,
+    df: pd.DataFrame,
+    port: int,
+    dataset_name = 'hatefull',
+    color_map = {"1": "red", "0": "blue"}
+):
+    data = df['label'].values.tolist()
+    labels = [str(x) for x in data]
+    fig = px.scatter(
+        x=z_2d[:, 0],
+        y=z_2d[:, 1],
+        title=title,
+        color=labels,
+        color_discrete_map = color_map,
+    )
+
+    app = JupyterDash(__name__)
+
+    app.layout = html.Div(
+        className="container",
+        children=[
+            dcc.Graph(id="graph-5", figure=fig, clear_on_unhover=True),
+            dcc.Tooltip(id="graph-tooltip-5", direction="bottom"),
+        ],
+    )
+
+    @app.callback(
+        Output("graph-tooltip-5", "show"),
+        Output("graph-tooltip-5", "bbox"),
+        Output("graph-tooltip-5", "children"),
+        Input("graph-5", "hoverData"),
+    )
+    def display_hover(hoverData):
+        if hoverData is None:
+            return False, no_update, no_update
+
+        hover_data = hoverData["points"][0]
+        bbox = hover_data["bbox"]
+        num = hover_data["pointNumber"]
+
+        image = get_image(df["image_index"].iloc[num], dataset=dataset_name)
+        #im_matrix = df["image"].iloc[num].permute(1, 2, 0).numpy().astype("uint8")
+        im_url = np_image_to_base64(image)
+        children = [
+            html.Div([
+                html.P(
+                    f"Text: {df['text'].iloc[num]}",
+                    style={
+                        "width": "224px",
+                        "fontSize": "10px",
+                        "whiteSpace": "pre-wrap",
+                    },
+                ),
+                html.Img(
+                    src=im_url,
+                    style={
+                        "width": "224px",
+                        "display": "block",
+                        "margin": "0 auto",
+                    },
+                ),
+            ])
+        ]
+
+        return True, bbox, children
+
+    app.run_server(port=port, mode="inline", debug=True)
+
 
 
 @torch.no_grad()
